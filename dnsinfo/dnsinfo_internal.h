@@ -27,7 +27,30 @@
 #include <os/availability.h>
 #include <TargetConditionals.h>
 #include <sys/cdefs.h>
+#ifndef	my_log
+/*
+ * xnu-rpi3 (DAR-285): this header is pulled in ONLY for SC_log, which is
+ * used ONLY by the `my_log` fallback definition a few lines below -- so a
+ * translation unit that already defines `my_log` for itself (dnsinfo_copy.c
+ * is exactly that: it defines my_log to os_log() before including this
+ * header) never references SC_log at all, yet still had to make the entire
+ * SystemConfiguration -> CoreFoundation -> IOKit header world resolvable.
+ *
+ * That is not free here. This port compiles dnsinfo_copy.c into
+ * libresolv.dylib, which sits UNDERNEATH libSystemConfiguration.dylib in
+ * the link order (libSystemConfiguration.dylib links libresolv.9.dylib) --
+ * so making libresolv's build depend on libSystemConfiguration's staged
+ * header trees is a real, circular build-order dependency, not a tidiness
+ * question.
+ *
+ * Guarding the include with the same `#ifndef my_log` that guards its only
+ * consumer removes the cycle and changes nothing for any other includer:
+ * dnsinfo_server.c / dnsinfo_flatfile.c / ip_plugin.c do not pre-define
+ * my_log, so they still get SCPrivate.h and the real SC_log exactly as
+ * before.
+ */
 #include <SystemConfiguration/SCPrivate.h>	// for SC_log
+#endif	// !my_log
 #include <arpa/inet.h>
 
 #include <dnsinfo.h>
